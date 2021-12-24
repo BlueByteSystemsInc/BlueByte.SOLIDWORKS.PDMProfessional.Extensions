@@ -4,24 +4,27 @@
     <!--*-->
     <id>BlueByte.SOLIDWORKS.PDMProfessional.Extensions</id>
     <!--*-->
-    <version>2021.0.17</version>
+    <version>2021.0.22</version>
     <title>swPDMAddInFramework.Extensions</title>
     <!--*-->
     <authors>Blue Byte Systems, Inc</authors>
     <owners>Blue Byte Systems, Inc</owners>
+    <projectUrl>https://github.com/BlueByteSystemsInc/PDMProfessionalExtensions</projectUrl>
+    <repository type="git" url="https://github.com/BlueByteSystemsInc/PDMProfessionalExtensions" />
     <!--
     <licenseUrl></licenseUrl>
     <projectUrl></projectUrl>
-    <iconUrl></iconUrl>
+    
 -->
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <licenseUrl>https://github.com/BlueByteSystemsInc/PDMProfessionalExtensions/blob/master/LICENSE.md</licenseUrl>
+    <iconUrl>https://secureservercdn.net/198.71.233.189/530.de9.myftpupload.com/wp-content/uploads/2019/03/cropped-logo-6.png</iconUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <!--*-->
     <description>Extensions methods for SOLIDWORKS PDM Professional API.</description>
     <!--*-->
     <releaseNotes>Extensions methods for SOLIDWORKS PDM Professional API.</releaseNotes>
     <copyright>Blue Byte Systems, Inc</copyright>
-    <tags>
-    </tags>
+    <tags>solidworks, solidworks pdm professional, solidworks pdm, extensions</tags>
     <dependencies>
       <!--
       <dependency id="SampleDependency" version="1.0" />

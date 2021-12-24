@@ -1,5 +1,6 @@
 ﻿using EPDM.Interop.epdm;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -413,6 +414,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <param name="file">The file.</param>
         /// <param name="variableName">Name of the variable.</param>
         /// <param name="value">The value.</param>
+        /// <param name="bOnlyIfPartOfCard">True to store the variable only if it is part of the file or folder data card, false to store the variable as hidden data if it is not part of the file or folder data card</param>
         /// <param name="configurationName">Name of the configuration.</param>
         /// <exception cref="ArgumentNullException">
         /// file
@@ -420,7 +422,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// Configuration cannot be empty
         /// </exception>
         /// <exception cref="Exception">Failed to set variable.</exception>
-        public static void SetVariableValue(this IEdmFile5 file, string variableName, object value, string configurationName = "@")
+        public static void SetVariableValue(this IEdmFile5 file, string variableName, object value, bool bOnlyIfPartOfCard = false, string configurationName = "@")
         {
             if (file == null)
                 throw new ArgumentNullException(nameof(file));
@@ -431,13 +433,13 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
             else
             {
                 if (string.IsNullOrWhiteSpace(configurationName))
-                    throw new ArgumentNullException("Configuration cannot be empty");
+                    throw new ArgumentNullException($"{nameof(configurationName)} cannot be empty for SOLIDWORKS files.");
             }
 
                 try
             {
                 IEdmEnumeratorVariable8 fileEnumerator = file.GetEnumeratorVariable() as IEdmEnumeratorVariable8;
-                fileEnumerator.SetVar(variableName, configurationName, value);
+                fileEnumerator.SetVar(variableName, configurationName, value, bOnlyIfPartOfCard);
                 fileEnumerator.CloseFile(true);
             }
             catch (Exception ex)
@@ -453,19 +455,19 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <param name="folder">The folder.</param>
         /// <param name="variableName">Name of the variable.</param>
         /// <param name="value">The value.</param>
+        /// <param name="bOnlyIfPartOfCard">True to store the variable only if it is part of the file or folder data card, false to store the variable as hidden data if it is not part of the file or folder data card</param>
         /// <exception cref="ArgumentNullException">folder</exception>
         /// <exception cref="Exception">Failed to set variable.</exception>
-        public static void SetVariableValue(this IEdmFolder5 folder, string variableName, object value)
+        public static void SetVariableValue(this IEdmFolder5 folder, string variableName, object value, bool bOnlyIfPartOfCard = false)
         {
             if (folder == null)
                 throw new ArgumentNullException(nameof(folder));
 
-             
-
+            
             try
             {
                 IEdmEnumeratorVariable8 fileEnumerator = folder as IEdmEnumeratorVariable8;
-                fileEnumerator.SetVar(variableName, string.Empty, value);
+                fileEnumerator.SetVar(variableName, string.Empty, value, bOnlyIfPartOfCard);
                 fileEnumerator.CloseFile(true);
             }
             catch (Exception ex)
@@ -485,16 +487,112 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         {
             IEdmEnumeratorVariable8 fileEnumerator = file.GetEnumeratorVariable() as IEdmEnumeratorVariable8;
             object variableValue = null;
-            try
-            {
+            
                 fileEnumerator.GetVar(variableName, configuration, out variableValue);
                 return variableValue;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Could not get a variable: {ex.Message}");
-            }
+            
         }
+
+        /// <summary>
+        /// Gets all variables.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <returns></returns>
+        public static IEdmVariable5[] GetAllVariables(this IEdmVault5 vault)
+        {
+            var variableMgr = vault as IEdmVariableMgr5;
+
+            var l = new List<IEdmVariable5>();
+
+            var pos = variableMgr.GetFirstVariablePosition();
+
+
+           while (pos.IsNull == false)
+            {
+                l.Add(variableMgr.GetNextVariable(pos));
+            }
+
+
+            return l.ToArray();
+
+        }
+
+        /// <summary>
+        /// Gets all variable values.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="variableNames">The variable ids.</param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// file
+        /// or
+        /// variableIds
+        /// </exception>
+        public static Dictionary<string,Dictionary<string, object>> BatchGetVariables(this IEdmFile5 file, string[] variableNames)
+        {
+            if (file == null)
+                throw new ArgumentNullException(nameof(file));
+
+
+            if (variableNames == null)
+                throw new ArgumentNullException(nameof(variableNames));
+
+ 
+
+   
+           
+
+            var configurationNames = file.GetConfigurationNames().ToList();
+            configurationNames.Add("@");
+
+            var ret = new Dictionary<string, Dictionary<string, object>>();
+
+
+            var enm = file.GetEnumeratorVariable() as IEdmEnumeratorVariable8;
+
+            foreach (var configurationName  in configurationNames)
+            {
+                ret.Add(configurationName, new Dictionary<string, object>());
+
+                
+                foreach (var variableName in variableNames)
+                {
+                    var value = new object();
+                    enm.GetVarFromDb(variableName, configurationName, out value);
+                    ret[configurationName].Add(variableName, value);
+                }
+ 
+               
+      
+            }
+
+
+            enm.CloseFile(true);
+
+
+            return ret;
+
+        }
+
+
+
+        /// <summary>
+        /// Gets the file's variable value from the server.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="variableName">Name of a variable.</param>
+        /// <param name="configuration">File's configuration</param>
+        /// <returns>File's variable value as an object. Throws an exception if getting a variable failed.</returns>
+        public static object GetVariableFromDb(this IEdmFile5 file, string variableName, string configuration = "@")
+        {
+            IEdmEnumeratorVariable8 fileEnumerator = file.GetEnumeratorVariable() as IEdmEnumeratorVariable8;
+            object variableValue = null;
+           
+            fileEnumerator.GetVarFromDb(variableName, configuration, out variableValue);
+            return variableValue;
+           
+        }
+
 
         /// <summary>
         /// Gets the folder's variable value
@@ -928,6 +1026,77 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
             return foldersList.ToArray();
         }
 
+
+        /// <summary>
+        /// Attempts to get <see cref="IEdmFile5"/> from path. This method swallows any exceptions if the file does not exist, and returns null instead.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <param name="filePath">The file path.</param>
+        /// <param name="folder">The folder.</param>
+        /// <returns><see cref="IEdmFile5"/></returns>
+        /// <exception cref="System.ArgumentNullException">vault</exception>
+        /// <exception cref="System.ArgumentException"></exception>
+        public static IEdmFile5 TryGetFileFromPath(this IEdmVault5 vault, string filePath, out IEdmFolder5 folder) 
+        {
+
+            var ret = default(IEdmFile5);
+            folder = default(IEdmFolder5);
+
+            if (vault == null)
+                throw new ArgumentNullException(nameof(vault));
+
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException($"{nameof(filePath)} cannot be null or white space.");
+
+            try
+            {
+                ret = vault.GetFileFromPath(filePath, out folder);
+            }
+            catch (Exception)
+            {
+
+            }
+
+
+            return ret;
+        }
+
+
+
+        /// <summary>
+        /// Attempts to get <see cref="IEdmFolder5"/> from path. This method swallows any exceptions if the folder does not exist, and returns null instead.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <param name="folderPath">The folder path.</param>
+        /// <returns><see cref="IEdmFolder5"/></returns>
+        /// <exception cref="System.ArgumentNullException">vault</exception>
+        /// <exception cref="System.ArgumentException"></exception>
+        public static IEdmFolder5 TryGetFolderFromPath(this IEdmVault5 vault, string folderPath)
+        {
+
+            var ret = default(IEdmFolder5);
+      
+            if (vault == null)
+                throw new ArgumentNullException(nameof(vault));
+
+            if (string.IsNullOrWhiteSpace(folderPath))
+                throw new ArgumentException($"{nameof(folderPath)} cannot be null or white space.");
+
+            try
+            {
+                ret = vault.GetFolderFromPath(folderPath);
+            }
+            catch (Exception)
+            {
+
+            }
+
+
+            return ret;
+        }
+
+
+
         /// <summary>
         /// Returns the ID of the parent folder.
         /// </summary>
@@ -936,6 +1105,9 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         public static int GetParentFolderID(this IEdmFile5 file)
         {
             var pos = file.GetFirstFolderPosition();
+
+            
+
             if (pos.IsNull)
                 return 0;
 
