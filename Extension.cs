@@ -9,6 +9,9 @@ using System.Runtime.InteropServices;
 namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 {
 
+
+
+
     /// <summary>
     /// Batch get settings for <see cref="Extensions.Extension.GetFiles(IEdmFolder5, BatchGetFilesSettings, string[])"/>
     /// </summary>
@@ -134,6 +137,20 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 
 
         /// <summary>
+        /// Returns an array of available bom layout names.
+        /// </summary>
+        /// <param name="vault"></param>
+        /// <returns></returns>
+        public static string[] GetBOMLayoutNames(this IEdmVault5 vault)
+        {
+            var bomMgr = (IEdmBomMgr)(vault as IEdmVault11).CreateUtility(EdmUtility.EdmUtil_BomMgr);
+            EdmBomLayout[] ppoRetLayouts = null;
+            bomMgr.GetBomLayouts(out ppoRetLayouts);
+            return ppoRetLayouts.Select(x=> x.mbsLayoutName).ToArray();
+        }
+
+
+        /// <summary>
         /// Batch gets variable values.
         /// </summary>
         /// <param name="items">The items. May include files and folders</param>
@@ -145,7 +162,30 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
             throw new NotImplementedException();
         }
 
-        
+        /// <summary>
+        /// Determines whether this instance [can edit add ins] the specified user.
+        /// </summary>
+        /// <param name="user">The user.</param>
+        /// <returns>
+        ///   <c>true</c> if this instance [can edit add ins] the specified user; otherwise, <c>false</c>.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">user</exception>
+        public static bool CanEditAddIns(this IEdmUser5 user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+
+            var ret = false;
+
+            var user7 = user as IEdmUser7;
+
+            ret = user7.HasSysRightEx(EdmSysPerm.EdmSysPerm_EditAddins);
+
+
+            return ret;
+
+        }
 
 
         /// <summary>
