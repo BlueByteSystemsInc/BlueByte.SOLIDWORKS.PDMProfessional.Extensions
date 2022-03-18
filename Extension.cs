@@ -127,12 +127,93 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         Drawing,
     }
 
+    /// <summary>
+    /// PDM Year
+    /// </summary>
+    public enum PDMYear 
+    {
+        /// <summary>
+        /// Undefined
+        /// </summary>
+        Undefined = 0,
+        /// <summary>
+        /// PDM2011
+        /// </summary>
+        PDM2011 = 19,
+        /// <summary>
+        /// PDM2012
+        /// </summary>
+        PDM2012 = 20,
+        /// <summary>
+        /// PDM2013
+        /// </summary>
+        PDM2013 = 21,
+        /// <summary>
+        /// PDM2014
+        /// </summary>
+        PDM2014 = 22,
+        /// <summary>
+        /// PDM2015
+        /// </summary>
+        PDM2015 = 23,
+        /// <summary>
+        /// PDM2016
+        /// </summary>
+        PDM2016 = 24,
+        /// <summary>
+        /// PDM2017
+        /// </summary>
+        PDM2017 = 25,
+        /// <summary>
+        /// PDM2018
+        /// </summary>
+        PDM2018 = 26,
+        /// <summary>
+        /// PDM2019
+        /// </summary>
+        PDM2019 = 27,
+        /// <summary>
+        /// PDM2020
+        /// </summary>
+        PDM2020 = 28,
+        /// <summary>
+        /// PDM2021
+        /// </summary>
+        PDM2021 = 29,
+        /// <summary>
+        /// PDM2022
+        /// </summary>
+        PDM2022 = 30,
+        /// <summary>
+        /// PDM2023
+        /// </summary>
+        PDM2023 = 31,
+    }
 
     /// <summary>
     /// PDM extensions
     /// </summary>
     public static class Extension
     {
+
+        /// <summary>
+        /// Gets PDM year.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <returns></returns>
+        public static PDMYear GetYearVersion(this IEdmVault5 vault)
+        {
+            int major = 0;
+            int minor = 0;
+            vault.GetVersion(ref major, ref minor);
+
+
+            return (PDMYear)major;
+        }
+
+
+
+
         #region Public Methods
 
 
@@ -140,13 +221,67 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// Returns an array of available bom layout names.
         /// </summary>
         /// <param name="vault"></param>
+        /// <param name="ignoreTypes">BOM types to ignore.</param>
         /// <returns></returns>
-        public static string[] GetBOMLayoutNames(this IEdmVault5 vault)
+        public static string[] GetBOMLayoutNames(this IEdmVault5 vault, EdmBomType[] ignoreTypes = null)
         {
+          
+
             var bomMgr = (IEdmBomMgr)(vault as IEdmVault11).CreateUtility(EdmUtility.EdmUtil_BomMgr);
+            
             EdmBomLayout[] ppoRetLayouts = null;
-            bomMgr.GetBomLayouts(out ppoRetLayouts);
-            return ppoRetLayouts.Select(x=> x.mbsLayoutName).ToArray();
+
+            
+            
+           
+
+            var year = vault.GetYearVersion();
+
+            EdmBomLayout2[] ppoRetLayouts2;
+            switch (year)
+            {
+                case PDMYear.Undefined:
+                case PDMYear.PDM2011:
+                case PDMYear.PDM2012:
+                case PDMYear.PDM2013:
+                case PDMYear.PDM2014:
+                case PDMYear.PDM2015:
+                case PDMYear.PDM2016:
+                case PDMYear.PDM2017:
+                case PDMYear.PDM2018:
+                case PDMYear.PDM2019:
+                    bomMgr.GetBomLayouts(out ppoRetLayouts);
+                    return ppoRetLayouts.Select(x => x.mbsLayoutName).ToArray();
+                case PDMYear.PDM2020:
+                case PDMYear.PDM2021:
+                case PDMYear.PDM2022:
+                case PDMYear.PDM2023:
+
+                    var bomMgr2 = bomMgr as IEdmBomMgr2;
+
+                    bomMgr2.GetBomLayouts2(out ppoRetLayouts2);
+
+                    if (ignoreTypes == null || ignoreTypes.Length == 0)
+                    return ppoRetLayouts.Select(x => x.mbsLayoutName).ToArray();
+
+                    var li = new List<string>();
+
+                    foreach (var layout in ppoRetLayouts2)
+                    {
+                        var type = (EdmBomType)layout.mlLayoutID;
+                        if (ignoreTypes.Contains(type) == false)
+                            li.Add(layout.mbsLayoutName);
+                    }
+
+                    return li.ToArray();
+
+                default:
+                    return new string[] { };
+
+            }
+
+
+          
         }
 
 
@@ -1161,7 +1296,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <summary>
         /// Returns an enum telling you the check-in state of the file.
         /// </summary>
-        /// <param name="file"File</param>
+        /// <param name="file">File</param>
         /// <returns><see cref="CheckoutAction"/></returns>
         public static CheckoutAction GetRequiredCheckOutAction(this IEdmFile5 file)
         {

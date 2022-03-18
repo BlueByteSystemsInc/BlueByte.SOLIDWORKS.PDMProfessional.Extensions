@@ -4,11 +4,11 @@
     <!--*-->
     <id>BlueByte.SOLIDWORKS.PDMProfessional.Extensions</id>
     <!--*-->
-    <version>2021.0.24</version>
-    <title>swPDMAddInFramework.Extensions</title>
+    <version>2021.0.25</version>
+    <title>BlueByte.SOLIDWORKS.PDMProfessional.Extensions</title>
     <!--*-->
-    <authors>Blue Byte Systems, Inc</authors>
-    <owners>Blue Byte Systems, Inc</owners>
+    <authors>Blue Byte Systems Inc.</authors>
+    <owners>Blue Byte Systems Inc.</owners>
     <projectUrl>https://github.com/BlueByteSystemsInc/PDMProfessionalExtensions</projectUrl>
     <repository type="git" url="https://github.com/BlueByteSystemsInc/PDMProfessionalExtensions" />
     <!--
