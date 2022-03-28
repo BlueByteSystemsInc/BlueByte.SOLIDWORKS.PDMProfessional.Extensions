@@ -9,11 +9,14 @@ using System.Runtime.InteropServices;
 namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 {
 
+    /*
+     use this command to build "P:\nuget\nuget.exe" pack "C:\Users\jlili\source\repos\BlueByteSystemsInc\PDMProfessionalExtensions\BlueByte.SOLIDWORKS.PDMProfessional.Extensions.csproj" -Build -Version "2021.0.26" -Properties  Configuration=Release -OutputDirectory "C:\Users\jlili\source\repos\BlueByteSystemsInc\PDMProfessionalExtensions\bin\NuGet"  -ForceEnglishOutput 
 
+     */
 
 
     /// <summary>
-    /// Batch get settings for <see cref="Extensions.Extension.GetFiles(IEdmFolder5, BatchGetFilesSettings, string[])"/>
+    /// Batch get settings for <see cref="Extensions.Extension.GetFiles(IEdmFolder5, BatchGetFilesSettings, string[])" />
     /// </summary>
     public struct BatchGetFilesSettings
     {
@@ -262,7 +265,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
                     bomMgr2.GetBomLayouts2(out ppoRetLayouts2);
 
                     if (ignoreTypes == null || ignoreTypes.Length == 0)
-                    return ppoRetLayouts.Select(x => x.mbsLayoutName).ToArray();
+                    return ppoRetLayouts2.Select(x => x.mbsLayoutName).ToArray();
 
                     var li = new List<string>();
 
