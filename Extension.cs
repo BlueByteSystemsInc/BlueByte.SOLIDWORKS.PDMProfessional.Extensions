@@ -299,9 +299,6 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <returns></returns>
         public static bool CheckOut(this IEdmFile5 file, IEdmFolder5 parentFolder, int handle, int checkoutFlags = (int)EdmGetCmdFlags.Egcf_Lock + (int)EdmGetCmdFlags.Egcf_SkipLockRefFiles)
         {
-            try
-            {
-
                 var vault = file.Vault as IEdmVault11;
 
 
@@ -326,12 +323,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 
 
                 return true;
-            }
-            catch (System.Exception e)
-            {
-
-                return false;
-            }
+            
 
         }
 
