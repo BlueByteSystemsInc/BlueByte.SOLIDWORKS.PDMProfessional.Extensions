@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -286,6 +287,54 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 
           
         }
+
+
+        /// <summary>
+        /// Checks out a file.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="parentFolder">The parent folder.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="checkoutFlags">The checkout flags. Default value is checking out file without references.</param>
+        /// <returns></returns>
+        public static bool CheckOut(this IEdmFile5 file, IEdmFolder5 parentFolder, int handle, int checkoutFlags = (int)EdmGetCmdFlags.Egcf_Lock + (int)EdmGetCmdFlags.Egcf_SkipLockRefFiles)
+        {
+            try
+            {
+
+                var vault = file.Vault as IEdmVault11;
+
+
+                var batchGetter = (IEdmBatchGet)vault.CreateUtility(EdmUtility.EdmUtil_BatchGet);
+
+                var ppoSelection = new EdmSelItem[1];
+
+
+                ppoSelection[0] = new EdmSelItem();
+                
+                ppoSelection[0].mlDocID = file.ID;
+
+                ppoSelection[0].mlProjID = parentFolder.ID;
+
+
+                batchGetter.AddSelection((EdmVault5)vault, ref ppoSelection);
+
+                batchGetter.CreateTree(handle, checkoutFlags);
+
+                batchGetter.GetFiles(handle, null);
+
+
+
+                return true;
+            }
+            catch (System.Exception e)
+            {
+
+                return false;
+            }
+
+        }
+
 
 
         /// <summary>
@@ -1224,7 +1273,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
                 throw new ArgumentNullException(nameof(vault));
 
             if (string.IsNullOrWhiteSpace(filePath))
-                throw new ArgumentException($"{nameof(filePath)} cannot be null or white space.");
+                throw new ArgumentNullException($"{nameof(filePath)}");
 
             try
             {
@@ -1236,6 +1285,60 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
             }
 
 
+            return ret;
+        }
+
+        /// <summary>
+        /// Attempts to get <see cref="IEdmFile5"/> from path. This method swallows any exceptions if the file does not exist, and returns null instead.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <param name="filePath">The file path.</param>
+        /// <param name="folder">The folder.</param>
+        /// <param name="timeoutInSeconds">Total in seconds</param>
+        /// <returns><see cref="IEdmFile5"/></returns>
+        /// <exception cref="System.ArgumentNullException">vault</exception>
+        /// <exception cref="System.ArgumentException"></exception>
+        public static IEdmFile5 TryGetFileFromPath(this IEdmVault5 vault, string filePath, out IEdmFolder5 folder, int timeoutInSeconds = 30)
+        {
+
+            var stopWatch = new Stopwatch();
+
+            
+            var ret = default(IEdmFile5);
+            folder = default(IEdmFolder5);
+
+            if (vault == null)
+                throw new ArgumentNullException(nameof(vault));
+
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentNullException($"{nameof(filePath)}");
+
+
+            stopWatch.Start();
+
+            var elapsedInSeconds = stopWatch.Elapsed.TotalSeconds;
+
+            while (elapsedInSeconds <= timeoutInSeconds)
+            {
+                try
+                {
+                    ret = vault.GetFileFromPath(filePath, out folder);
+                
+                    if (ret != null)
+                        break;
+                    
+                }
+                catch (Exception)
+                {
+
+                }
+
+
+                elapsedInSeconds = stopWatch.Elapsed.TotalSeconds;
+            }
+
+
+            stopWatch.Stop();
             return ret;
         }
 
