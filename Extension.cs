@@ -216,9 +216,126 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         }
 
 
+        /// <summary>
+        /// Adds the or update.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="fileName">Name of the file.</param>
+        /// <param name="checkIn">if set to <c>true</c> [check in].</param>
+        /// <param name="checkInMessage">The check in message.</param>
+        /// <param name="updateAction">The update action.</param>
+        /// <param name="newFileName">New name of the file.</param>
+        /// <exception cref="System.NullReferenceException">vault</exception>
+        /// <exception cref="System.ArgumentNullException">fileName</exception>
+        /// <exception cref="System.Exception">
+        /// The folder {dir} was not found in the vault [{vault.Name}]. Please make sure the folder exists.
+        /// or
+        /// </exception>
+        public static void AddOrUpdate(this IEdmVault5 vault, int handle, string fileName, bool checkIn = false, string checkInMessage = "", Action<IEdmFile5> updateAction = null, string newFileName = "")
+        {
+            if (vault == null)
+                throw new NullReferenceException(nameof(vault));
+
+            if (string.IsNullOrWhiteSpace(fileName))
+                throw new ArgumentNullException(nameof(fileName));
+
+
+            var dir = System.IO.Path.GetDirectoryName(fileName);
+            
+            var dirObject = vault.TryGetFolderFromPath(dir);
+
+            if (dirObject == null)
+                throw new Exception($"The folder {dir} was not found in the vault [{vault.Name}]. Please make sure the folder exists.");
+
+            IEdmFolder5 folder;
+            var file = vault.TryGetFileFromPath(fileName, out folder);
+
+            if (file == null)
+            {
+                var id = dirObject.AddFile(handle, fileName, newFileName, (int)EdmAddFlag.EdmAdd_Simple);
+
+                var f = vault.GetObject(EdmObjectType.EdmObject_File, id) as IEdmFile5;
+
+                file.UnlockFile(dirObject.ID, checkInMessage);
+
+            }
+            else
+            {
+                var requiredCheckAction = file.GetRequiredCheckOutAction();
+
+                switch (requiredCheckAction)
+                {
+                    case CheckoutAction.DoNothingFileCheckedOutByMe:
+                        break;
+                    case CheckoutAction.FileCheckedInCanBeCheckedOut:
+                        file.LockFile(dirObject.ID, handle);
+                        break;
+                    case CheckoutAction.CheckedOutBySomeoneElse:
+                        throw new Exception($"{file.Name} is checked out by another user. This operation is not permitted.");
+                    default:
+                        break;
+                }
+
+
+
+                file.Refresh();
+
+                if (updateAction != null)
+                    updateAction.Invoke(file);
+
+                file.LockFile(dirObject.ID, handle);
+
+            }
+
+
+        }
+
+
+
 
 
         #region Public Methods
+
+        /// <summary>
+        /// Checks the in.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="parentFolder">The parent folder.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="checkoutFlags">The checkin flags.</param>
+        /// <returns></returns>
+        public static bool CheckIn(this IEdmFile5 file, IEdmFolder5 parentFolder, int handle, int checkoutFlags = (int)EdmUnlockBuildTreeFlags.Eubtf_ForceUnlock + (int)EdmUnlockBuildTreeFlags.Eubtf_NoCallbackDlgErrors + (int)EdmUnlockBuildTreeFlags.Eubtf_SkipOpenFileChecks)
+        {
+           
+                var vault = file.Vault as IEdmVault11;
+
+
+                var batchGetter = (IEdmBatchUnlock2)vault.CreateUtility(EdmUtility.EdmUtil_BatchUnlock);
+
+                var ppoSelection = new EdmSelItem[1];
+
+
+                ppoSelection[0] = new EdmSelItem();
+
+                ppoSelection[0].mlDocID = file.ID;
+
+                ppoSelection[0].mlProjID = parentFolder.ID;
+
+
+                batchGetter.AddSelection((EdmVault5)vault, ref ppoSelection);
+
+                batchGetter.CreateTree(handle, checkoutFlags);
+
+                batchGetter.UnlockFiles(handle, null);
+
+                return true;
+          
+
+
+         
+        }
+
 
 
         /// <summary>
