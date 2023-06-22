@@ -200,6 +200,158 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
     public static class Extension
     {
 
+
+        /// <summary>
+        /// Transitions this file.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="parentID">The parent identifier.</param>
+        /// <param name="transitionName">Name of the transition.</param>
+        /// <param name="targetStateName">Name of the target state.</param>
+        /// <param name="comment">The comment.</param>
+        /// <param name="handle">The handle.</param>
+        public static bool Transition(this IEdmFile5 file, int parentID, string transitionName, string targetStateName, string comment, int handle)
+        {
+            var vault = file.Vault;
+
+            var workflows = vault.GetWorkflows();
+
+
+
+            IEdmState5 fileCurrentState = file.CurrentState;
+
+            var transitions = fileCurrentState.GetTransitions();
+
+            foreach (var transition in transitions)
+            {
+
+                if (transition.Name.Equals(transitionName, StringComparison.OrdinalIgnoreCase) == false)
+                    continue;
+
+                var targetState = transition.ToState as IEdmState6;
+
+                if (targetState == null)
+                    continue;   
+
+                if (targetState.Name.Equals(targetStateName, StringComparison.OrdinalIgnoreCase))
+                {
+
+                    var file10 = file as IEdmFile17;
+
+                    file10.ChangeState(targetState.ID, parentID, comment, handle, (int)EdmStateFlags.EdmState_Simple);
+                    
+                    file.Refresh();
+
+                    if (file.CurrentState.Name.Equals(targetStateName))
+                        return true; 
+                    
+                }
+            }
+
+
+
+            return false; 
+        }
+
+
+        /// <summary>
+        /// Gets the workflows.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <returns></returns>
+        public static IEdmWorkflow5[] GetWorkflows(this IEdmVault5 vault)
+        {
+            var workflowMgr = vault as IEdmWorkflowMgr6;
+            var workflows = new List<IEdmWorkflow5>();
+
+
+            var pos = workflowMgr.GetFirstWorkflowPosition();
+
+
+            while (pos.IsNull == false)
+            {
+                var i = workflowMgr.GetNextWorkflow(pos) as IEdmWorkflow5;
+                workflows.Add(i);
+
+            }
+
+
+            return workflows.ToArray();
+        }
+
+        /// <summary>
+        /// Gets the states from this workflow.
+        /// </summary>
+        /// <param name="workflow">workflow.</param>
+        /// <returns></returns>
+        public static IEdmState5[] GetStates(this IEdmWorkflow5 workflow)
+        {
+            var instances = new List<IEdmState5>();
+
+
+            var pos = workflow.GetFirstStatePosition();
+
+
+            while (pos.IsNull == false)
+            {
+                var i = workflow.GetNextState(pos) as IEdmState5;
+                instances.Add(i);
+
+            }
+
+
+            return instances.ToArray();
+        }
+
+        /// <summary>
+        /// Gets all the transitions from this workflow.
+        /// </summary>
+        /// <param name="workflow">workflow.</param>
+        /// <returns></returns>
+        public static IEdmTransition5[] GetTransitions(this IEdmWorkflow5 workflow)
+        {
+            var instances = new List<IEdmTransition5>();
+
+
+            var pos = workflow.GetFirstTransitionPosition();
+
+
+            while (pos.IsNull == false)
+            {
+                var i = workflow.GetNextTransition(pos) as IEdmTransition5;
+                instances.Add(i);
+
+            }
+
+
+            return instances.ToArray();
+        }
+
+        /// <summary>
+        /// Gets all the transitions from this state.
+        /// </summary>
+        /// <param name="state">State.</param>
+        /// <returns></returns>
+        public static IEdmTransition5[] GetTransitions(this IEdmState5 state)
+        {
+            var instances = new List<IEdmTransition5>();
+
+
+            var pos = state.GetFirstTransitionPosition();
+
+
+            while (pos.IsNull == false)
+            {
+                var i = state.GetNextTransition(pos) as IEdmTransition5;
+                instances.Add(i);
+
+            }
+
+
+            return instances.ToArray();
+        }
+
+
         /// <summary>
         /// Gets PDM year.
         /// </summary>
@@ -213,6 +365,53 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 
 
             return (PDMYear)major;
+        }
+
+        /// <summary>
+        /// Creates virtual documents. Do not run this on a work thread.
+        /// </summary>
+        /// <param name="folder">The folder.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="fileNames">file names without the path and with the extension.</param>
+        /// <param name="callback">Callback</param>
+        public static void CreateVirtualDocuments(this IEdmFolder10 folder, int handle, string[] fileNames, IEdmCallback6 callback = null)
+        {
+            
+            var filesToAddList = new List<EdmAddFileInfo>();
+            var temporaryDirectory = System.IO.Directory.CreateDirectory(System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Diagnostics.Process.GetCurrentProcess().Id.ToString()));
+
+            if (temporaryDirectory.Exists == false)
+                temporaryDirectory.Create();
+            else
+            {
+                temporaryDirectory.Delete(true);
+                temporaryDirectory.Create();
+
+            }
+            foreach (var file in fileNames)
+            {
+                using (var s = System.IO.File.Create($@"{temporaryDirectory.FullName}\{$"{file.Trim()}"}"))
+                {
+
+                }
+            }
+
+            foreach (var file in fileNames)
+            {
+                filesToAddList.Add(new EdmAddFileInfo()
+                {
+
+                    mbsNewName = $"{file.Trim()}",
+                    mbsPath = $@"{temporaryDirectory.FullName}\{$"{file.Trim()}"}",
+
+                }); ;
+            }
+
+            var filesToAdd = filesToAddList.ToArray();
+
+
+
+            folder.AddFiles(handle, ref filesToAdd, callback);
         }
 
 

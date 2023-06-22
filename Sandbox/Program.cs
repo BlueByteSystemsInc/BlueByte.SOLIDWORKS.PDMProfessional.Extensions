@@ -19,7 +19,9 @@ namespace Sandbox
 
             vault.LoginAuto("bluebyte", 0);
 
-            var file = vault.TryGetFileFromPath(@"C:\SOLIDWORKSPDM\Bluebyte\api\knapheide\bodies\12240859.SLDASM", out folder,40);
+            var file = vault.TryGetFileFromPath(@"C:\SOLIDWORKSPDM\Bluebyte\api\sandbox\Grill Assembly\Support_Frame_End_&.SLDASM", out folder,40);
+
+            file.Transition(folder.ID, "Major Engineering Change","Dispatch Target 001", "Sandbox transition", 0);
 
             file.CheckOut(folder, 0);
 
