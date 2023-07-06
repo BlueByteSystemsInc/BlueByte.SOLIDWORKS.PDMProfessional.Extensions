@@ -64,6 +64,11 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         DoNothingFileCheckedOutByMe,
 
         /// <summary>
+        /// The file checked out by me on another machine.
+        /// </summary>
+        FileCheckedOutByMeOnAnotherMachine,
+
+        /// <summary>
         /// File is checked in and can be checked out.
         /// </summary>
         FileCheckedInCanBeCheckedOut,
@@ -1723,7 +1728,12 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
             if (file.IsLocked)
             {
                 if (file.LockedByUserID == userMgr.GetLoggedInUser().ID)
+                {
+                    if (file.LockedOnComputer.Equals(System.Environment.MachineName) == false)
+                        return CheckoutAction.FileCheckedOutByMeOnAnotherMachine;
+
                     return CheckoutAction.DoNothingFileCheckedOutByMe;
+                }
                 else
                     return CheckoutAction.CheckedOutBySomeoneElse;
             }
