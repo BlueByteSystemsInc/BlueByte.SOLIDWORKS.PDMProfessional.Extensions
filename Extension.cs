@@ -540,6 +540,97 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
          
         }
 
+        /// <summary>
+        /// Adds the file.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
+        /// <param name="originalFile">The original file.</param>
+        /// <param name="vaultfile">The vaultfile.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="error">The error.</param>
+        /// <param name="edmLockFlags">The edm lock flags.</param>
+        /// <param name="checkIn">if set to <c>true</c> [check in].</param>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        public static void AddFile(this EdmVault5 vault, string originalFile, string vaultfile, int handle,  out string error, int edmLockFlags =0, bool checkIn = true)
+        {
+
+            error = string.Empty;
+
+            if (vault == null)
+                throw new ArgumentNullException();
+
+            var directory = (new FileInfo(vaultfile)).DirectoryName;
+
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                error = "Failed to get directory. FileInfo::DirectoryName failed.";
+                return;
+            }
+
+            var folder = vault.TryGetFolderFromPath(directory); 
+
+           
+
+            if (folder  == null)
+            {
+                // attempt to create folder 
+                var relativePath = folder.LocalPath.Replace(vault.RootFolderPath,"");
+
+                try
+                {
+                    folder = vault.RootFolder.CreateFolderPath(relativePath, handle);
+                }
+                catch (Exception e) 
+                {
+                    error = $"Failed to create {relativePath}. {e.Message}";
+                    return;
+                }
+            }
+
+
+            IEdmFolder5 vaultFolder;
+            var file = vault.TryGetFileFromPath(vaultfile, out vaultFolder);
+
+            if (file == null)
+            {
+                folder.Refresh();
+
+                var id = folder.AddFile(handle, originalFile);
+
+                file = vault.GetObject(EdmObjectType.EdmObject_File, id) as IEdmFile5;
+
+                if (checkIn)
+                    file.UnlockFile(handle, string.Empty, edmLockFlags);
+
+                return;
+            }
+
+            var requiredCheckOutAction = file.GetRequiredCheckOutAction();
+
+            switch (requiredCheckOutAction)
+            {
+                case CheckoutAction.DoNothingFileCheckedOutByMe:
+                    System.IO.File.Copy(originalFile, vaultfile, true); 
+                    break;
+                case CheckoutAction.FileCheckedOutByMeOnAnotherMachine:
+                    error = $"{file.Name} is checked by you on another machine";
+                    return;
+                case CheckoutAction.FileCheckedInCanBeCheckedOut:
+                    file.LockFile(folder.ID, handle);
+                    System.IO.File.Copy(originalFile, vaultfile, true);
+                    break;
+                case CheckoutAction.CheckedOutBySomeoneElse:
+                    error = $"{file.Name} is checked by someone else";
+                    return;
+                default:
+                    break;
+            }
+
+
+            if (checkIn)
+                file.UnlockFile(handle, string.Empty, edmLockFlags);
+
+        }
 
 
         /// <summary>
@@ -609,6 +700,37 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
           
         }
 
+        /// <summary>
+        /// Sets the variable value.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="variableName">Name of the variable.</param>
+        /// <param name="value">The value.</param>
+        /// <returns></returns>
+        public static bool SetVariableValue(this IEdmFile5 file, string variableName, string v)
+        {
+            var vault1 = file.Vault as IEdmVault21;
+
+            // Create a batch update utility
+                IEdmBatchUpdate2 Update = default(IEdmBatchUpdate2);
+            Update = (IEdmBatchUpdate2)(vault1).CreateUtility(EdmUtility.EdmUtil_BatchUpdate);
+
+            var VariableMgr = (IEdmVariableMgr5)vault1;
+            
+            var variableID = VariableMgr.GetVariable(variableName).ID;
+
+            var value = v;
+
+
+            Update.SetVar(file.ID, variableID, value, "@", (int)EdmBatchFlags.EdmBatch_RefreshPreview);
+            
+            
+            EdmBatchError2[] Errors = null;
+            
+            Update.CommitUpdate(out Errors, null);
+
+            return true; 
+        }
 
         /// <summary>
         /// Checks out a file.
@@ -617,11 +739,19 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <param name="parentFolder">The parent folder.</param>
         /// <param name="handle">The handle.</param>
         /// <param name="checkoutFlags">The checkout flags. Default value is checking out file without references.</param>
+        /// <param name="single">Check the file out using the default behavior</param>
         /// <returns></returns>
-        public static bool CheckOut(this IEdmFile5 file, IEdmFolder5 parentFolder, int handle, int checkoutFlags = (int)EdmGetCmdFlags.Egcf_Lock + (int)EdmGetCmdFlags.Egcf_SkipLockRefFiles)
+        public static bool CheckOut(this IEdmFile5 file, IEdmFolder5 parentFolder, int handle, int checkoutFlags = (int)EdmGetCmdFlags.Egcf_Lock + (int)EdmGetCmdFlags.Egcf_SkipLockRefFiles, bool single = true)
         {
-                var vault = file.Vault as IEdmVault11;
 
+                if (single)
+                {
+                    file.LockFile(parentFolder.ID, handle);
+                    return true; 
+                }
+
+
+                var vault = file.Vault as IEdmVault11;
 
                 var batchGetter = (IEdmBatchGet)vault.CreateUtility(EdmUtility.EdmUtil_BatchGet);
 

@@ -11,23 +11,94 @@ namespace Sandbox
     class Program
     {
         private static IEdmFolder5 folder;
+        private static EdmVault5 vault;
+        private static string originalFileLocation;
+        private static string vaultFile;
+        private static int handle = int.MinValue;
 
         static void Main(string[] args)
         {
 
-            var vault = new EdmVault5();
+            handle = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle.ToInt32();
 
-            vault.LoginAuto("bluebyte", 0);
+            vault = new EdmVault5();
 
-            var file = vault.TryGetFileFromPath(@"C:\SOLIDWORKSPDM\Bluebyte\api\sandbox\Grill Assembly\Support_Frame_End_&.SLDASM", out folder,40);
-
-            file.Transition(folder.ID, "Major Engineering Change","Dispatch Target 001", "Sandbox transition", 0);
-
-            file.CheckOut(folder, 0);
+            vault.LoginAuto("bluebyte", handle);
 
 
+            originalFileLocation = @"C:\Users\jlili\Desktop\P017-525-0033Default.xlsx";
+            vaultFile = @"C:\SOLIDWORKSPDM\Bluebyte\API\pdm2excel\thumnails example\P017-525-0033Default.xlsx";
+
+
+            TestAddFileNonExistingPDM();
+            TestAddFileNonExistingPDM();
+            TestAddFileWhileExistingCheckedIn();
+            TestAddFileWhileExistingCheckedOut();
             Console.Read();
 
         }
+
+
+        public static void TestAddFileNonExistingPDM()
+        {
+            IEdmFolder5 originalFolder;
+            var file = vault.TryGetFileFromPath(vaultFile, out originalFolder);
+
+            if (file != null)
+                originalFolder.DeleteFile(handle, file.ID, true);
+
+            if (originalFolder != null)
+            originalFolder.Refresh();
+
+            string error;
+
+            vault.AddFile(originalFileLocation, vaultFile, handle, out error);
+
+            string assert = string.IsNullOrEmpty(error) ? "Pass" : $"Fail {error}";
+
+            Console.WriteLine($"{System.Reflection.MethodBase.GetCurrentMethod().Name}: {assert}");
+
+        }
+
+        public static void TestAddFileWhileExistingCheckedIn()
+        {
+            IEdmFolder5 originalFolder;
+            var file = vault.TryGetFileFromPath(vaultFile, out originalFolder);
+
+            if (file == null)
+                Console.WriteLine($"{System.Reflection.MethodBase.GetCurrentMethod().Name}: Test method failed because it could not find file.");
+            
+            string error;
+
+            vault.AddFile(originalFileLocation, vaultFile, handle, out error);
+
+            string assert = string.IsNullOrEmpty(error) ? "Pass" : $"Fail {error}";
+
+            Console.WriteLine($"{System.Reflection.MethodBase.GetCurrentMethod().Name}: {assert}");
+
+        }
+
+        public static void TestAddFileWhileExistingCheckedOut()
+        {
+            IEdmFolder5 originalFolder;
+            var file = vault.TryGetFileFromPath(vaultFile, out originalFolder);
+
+            if (file == null)
+                Console.WriteLine($"{System.Reflection.MethodBase.GetCurrentMethod().Name}: Test method failed because it could not find file.");
+
+            if (file.IsLocked == false)
+                file.LockFile(originalFolder.ID, handle);
+
+            string error;
+
+            vault.AddFile(originalFileLocation, vaultFile, handle, out error);
+
+            string assert = string.IsNullOrEmpty(error) ? "Pass" : $"Fail {error}";
+
+            Console.WriteLine($"{System.Reflection.MethodBase.GetCurrentMethod().Name}: {assert}");
+
+        }
+
+
     }
 }
