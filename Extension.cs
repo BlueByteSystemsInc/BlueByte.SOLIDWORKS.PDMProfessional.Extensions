@@ -544,6 +544,65 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// Adds the file.
         /// </summary>
         /// <param name="vault">The vault.</param>
+        /// <param name="folderPath">Folder Path.</param>
+        /// <param name="handle">The handle.</param>
+        /// <param name="error">The error.</param> 
+        /// <exception cref="System.ArgumentNullException"></exception>
+        public static IEdmFolder5 GetFolderFromPath(this EdmVault5 vault, string folderPath, int handle, out string error)
+        {
+
+          
+            error = string.Empty;
+
+            if (vault == null)
+                throw new ArgumentNullException();
+
+            var directory = folderPath;
+
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                error = "Failed to get directory. FileInfo::DirectoryName failed.";
+                return null;
+            }
+
+            if (directory.StartsWith(vault.RootFolderPath) == false)
+            {
+                error = "Folder out vault";
+                return null;
+            }
+           
+
+            var folder = default(IEdmFolder5);
+
+             folder =  vault.TryGetFolderFromPath(directory);
+
+            if (folder != null)
+                return folder; 
+
+                // attempt to create folder 
+                var relativePath = folder.LocalPath.Replace(vault.RootFolderPath, "");
+
+                try
+                {
+                    folder = vault.RootFolder.CreateFolderPath(relativePath, handle);
+                }
+                catch (Exception e)
+                {   
+                    error = $"Failed to create {relativePath}. {e.Message}";
+                    
+                }
+           
+                return folder;
+           
+
+
+        }
+
+
+        /// <summary>
+        /// Adds the file.
+        /// </summary>
+        /// <param name="vault">The vault.</param>
         /// <param name="originalFile">The original file.</param>
         /// <param name="vaultfile">The vaultfile.</param>
         /// <param name="handle">The handle.</param>
