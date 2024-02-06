@@ -197,6 +197,14 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// PDM2023
         /// </summary>
         PDM2023 = 31,
+        /// <summary>
+        /// PDM2024
+        /// </summary>
+        PDM2024 = 32,
+        /// <summary>
+        /// PDM2025
+        /// </summary>
+        PDM2025 = 33,
     }
 
     /// <summary>
@@ -425,10 +433,10 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// </summary>
         /// <param name="vault">The vault.</param>
         /// <param name="handle">The handle.</param>
-        /// <param name="fileName">Name of the file.</param>
+        /// <param name="originalFileName">Name of the file.</param>
         /// <param name="checkIn">if set to <c>true</c> [check in].</param>
         /// <param name="checkInMessage">The check in message.</param>
-        /// <param name="updateAction">The update action.</param>
+        /// <param name="copyAction">The update action.</param>
         /// <param name="newFileName">New name of the file.</param>
         /// <exception cref="System.NullReferenceException">vault</exception>
         /// <exception cref="System.ArgumentNullException">fileName</exception>
@@ -436,32 +444,35 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// The folder {dir} was not found in the vault [{vault.Name}]. Please make sure the folder exists.
         /// or
         /// </exception>
-        public static void AddOrUpdate(this IEdmVault5 vault, int handle, string fileName, bool checkIn = false, string checkInMessage = "", Action<IEdmFile5> updateAction = null, string newFileName = "")
+        public static void AddOrUpdate(this IEdmVault5 vault, int handle, string originalFileName, bool checkIn = false, string checkInMessage = "", Action copyAction = null, string newFileName = "")
         {
             if (vault == null)
                 throw new NullReferenceException(nameof(vault));
 
-            if (string.IsNullOrWhiteSpace(fileName))
-                throw new ArgumentNullException(nameof(fileName));
+            if (string.IsNullOrWhiteSpace(originalFileName))
+                throw new ArgumentNullException(nameof(originalFileName));
 
 
-            var dir = System.IO.Path.GetDirectoryName(fileName);
-            
+            var dir = System.IO.Path.GetDirectoryName(newFileName);
+
             var dirObject = vault.TryGetFolderFromPath(dir);
 
             if (dirObject == null)
-                throw new Exception($"The folder {dir} was not found in the vault [{vault.Name}]. Please make sure the folder exists.");
+            {
+                // copies blindly
+                if (copyAction != null)
+                    copyAction.Invoke();
+                return; 
+            }
 
             IEdmFolder5 folder;
-            var file = vault.TryGetFileFromPath(fileName, out folder);
+            var file = vault.TryGetFileFromPath(newFileName, out folder);
 
             if (file == null)
             {
-                var id = dirObject.AddFile(handle, fileName, newFileName, (int)EdmAddFlag.EdmAdd_Simple);
-
+                var id = dirObject.AddFile(handle, originalFileName, System.IO.Path.GetFileName(newFileName), (int)EdmAddFlag.EdmAdd_Simple);
                 var f = vault.GetObject(EdmObjectType.EdmObject_File, id) as IEdmFile5;
-
-                file.UnlockFile(dirObject.ID, checkInMessage);
+                f.UnlockFile(handle, checkInMessage);
 
             }
             else
@@ -485,16 +496,15 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
 
                 file.Refresh();
 
-                if (updateAction != null)
-                    updateAction.Invoke(file);
+                if (copyAction != null)
+                    copyAction.Invoke();
 
-                file.LockFile(dirObject.ID, handle);
+                file.UnlockFile(handle, "Checked in.");
 
             }
 
 
         }
-
 
 
 
@@ -541,14 +551,14 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         }
 
         /// <summary>
-        /// Adds the file.
+        /// Gets folder. If folder does not exist, creates one.
         /// </summary>
         /// <param name="vault">The vault.</param>
         /// <param name="folderPath">Folder Path.</param>
         /// <param name="handle">The handle.</param>
         /// <param name="error">The error.</param> 
         /// <exception cref="System.ArgumentNullException"></exception>
-        public static IEdmFolder5 GetFolderFromPath(this EdmVault5 vault, string folderPath, int handle, out string error)
+        public static IEdmFolder5 GetFolderFromPath(this IEdmVault5 vault, string folderPath, int handle, out string error)
         {
 
           
@@ -577,13 +587,12 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
              folder =  vault.TryGetFolderFromPath(directory);
 
             if (folder != null)
-                return folder; 
+                return folder;
 
-                // attempt to create folder 
-                var relativePath = folder.LocalPath.Replace(vault.RootFolderPath, "");
+            var relativePath = directory.Replace(vault.RootFolderPath, "");
 
-                try
-                {
+            try
+            { // attempt to create folder 
                     folder = vault.RootFolder.CreateFolderPath(relativePath, handle);
                 }
                 catch (Exception e)
@@ -610,7 +619,7 @@ namespace BlueByte.SOLIDWORKS.PDMProfessional.Extensions
         /// <param name="edmLockFlags">The edm lock flags.</param>
         /// <param name="checkIn">if set to <c>true</c> [check in].</param>
         /// <exception cref="System.ArgumentNullException"></exception>
-        public static void AddFile(this EdmVault5 vault, string originalFile, string vaultfile, int handle,  out string error, int edmLockFlags =0, bool checkIn = true)
+        public static void AddFile(this IEdmVault5 vault, string originalFile, string vaultfile, int handle,  out string error, int edmLockFlags =0, bool checkIn = true)
         {
 
             error = string.Empty;

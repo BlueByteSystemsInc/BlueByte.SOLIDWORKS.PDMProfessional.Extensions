@@ -25,6 +25,9 @@ namespace Sandbox
 
             vault.LoginAuto("bluebyte", handle);
 
+            string error;
+            var folder = vault.GetFolderFromPath(@"C:\SOLIDWORKSPDM\Bluebyte\API\pyrotek\Admin", handle, out error);
+
 
             originalFileLocation = @"C:\Users\jlili\Desktop\P017-525-0033Default.xlsx";
             vaultFile = @"C:\SOLIDWORKSPDM\Bluebyte\API\pdm2excel\thumnails example\P017-525-0033Default.xlsx";
